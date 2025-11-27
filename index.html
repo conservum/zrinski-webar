@@ -2,7 +2,7 @@
 <html lang="hr">
   <head>
     <meta charset="UTF-8" />
-    <title>Zrinski AR test (bez videa)</title>
+    <title>Zrinski AR demo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- A-Frame + MindAR -->
@@ -42,6 +42,40 @@
         font-size: 13px;
         z-index: 9;
       }
+
+      /* HTML video overlay */
+      #video-overlay {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 70vw;
+        max-width: 420px;
+        z-index: 20;
+        display: none; /* skriven dok ne nađemo target */
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+        border-radius: 12px;
+        overflow: hidden;
+        background: #000;
+      }
+
+      #video-overlay video {
+        width: 100%;
+        display: block;
+      }
+
+      #video-close {
+        position: absolute;
+        top: 6px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        border: none;
+        border-radius: 999px;
+        font-size: 12px;
+        padding: 3px 8px;
+        cursor: pointer;
+      }
     </style>
   </head>
 
@@ -49,6 +83,20 @@
     <div id="loading">Učitavanje AR iskustva…</div>
     <div id="ui-hint">Usmjeri kameru prema portretu Zrinskog</div>
 
+    <!-- HTML VIDEO OVERLAY -->
+    <div id="video-overlay">
+      <button id="video-close">✕</button>
+      <video
+        id="zrinski-video"
+        src="Nikola_3.mp4"
+        preload="auto"
+        playsinline
+        webkit-playsinline
+        controls
+      ></video>
+    </div>
+
+    <!-- MindAR scena (bez 3D objekata, samo radi trackinga) -->
     <a-scene
       mindar-image="imageTargetSrc: ./targets.mind;"
       color-space="sRGB"
@@ -57,25 +105,10 @@
       device-orientation-permission-ui="enabled: false"
       embedded
     >
-      <!-- kamera -->
-      <a-camera
-        position="0 0 0"
-        look-controls="enabled: false"
-        near="0.01"
-        far="1000"
-      ></a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- target 0 iz targets.mind -->
       <a-entity mindar-image-target="targetIndex: 0" id="zrinski-target">
-        <!-- CRVENI PRAVOKUTNIK POMAKNUT PREMA KAMERI I POVEĆAN -->
-        <a-plane
-          id="test-plane"
-          width="3"
-          height="5"
-          position="0 0 -0.5"
-          rotation="0 0 0"
-          material="color: red; opacity: 0.7; side: double"
-        ></a-plane>
+        <!-- nema geometrije, koristimo samo targetFound/targetLost evente -->
       </a-entity>
     </a-scene>
 
@@ -84,14 +117,39 @@
         const loading = document.getElementById("loading");
         const hint = document.getElementById("ui-hint");
         const target = document.getElementById("zrinski-target");
+        const overlay = document.getElementById("video-overlay");
+        const video = document.getElementById("zrinski-video");
+        const closeBtn = document.getElementById("video-close");
+
+        const showOverlay = () => {
+          overlay.style.display = "block";
+        };
+
+        const hideOverlay = () => {
+          overlay.style.display = "none";
+          video.pause();
+        };
 
         target.addEventListener("targetFound", () => {
           hint.textContent =
-            "✅ Slika prepoznata – trebao bi se pojaviti CRVENI overlay...";
+            "✅ Slika prepoznata – dodirni ekran za pokretanje videa.";
+          showOverlay();
+          // Neki mobiteli traže interakciju prije play(),
+          // pa korisnik može ručno pritisnuti play ili bilo gdje u videu.
         });
 
         target.addEventListener("targetLost", () => {
           hint.textContent = "Usmjeri kameru prema portretu Zrinskog";
+          hideOverlay();
+        });
+
+        closeBtn.addEventListener("click", hideOverlay);
+
+        // Opcionalno: tap na overlay pokreće video ako je pauziran
+        overlay.addEventListener("click", () => {
+          if (video.paused) {
+            video.play().catch(() => {});
+          }
         });
 
         setTimeout(() => {
